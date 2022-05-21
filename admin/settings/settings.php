@@ -28,3 +28,6 @@
 		</div>
 	</form>
 </div>
+<div class='cron_url_link'>
+	<strong>Set a cron job to run in your system regularly at this url: </strong> <?php echo admin_url('admin-ajax.php?action=get_fzt_products'); ?>
+</div>
