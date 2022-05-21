@@ -149,7 +149,14 @@ class FZT_API {
 			foreach( $images as $image ) {
 				$product_code = $image[ 'code' ];
 				if(array_key_exists( $product_code, $productArr ) ) {
-					$productArr[$product_code]['imageUrl']  = $image['imageURL'];
+					if( array_key_exists( 'imageURL', $image ) ){
+						$productArr[$product_code]['imageUrl']  = $image['imageURL'];
+					}
+					else{
+						SELF::log("imageURL not set for {$product_code}");
+						$productArr[$product_code]['imageUrl'] = '';
+					}
+					
 				}
 			}
 

@@ -143,7 +143,7 @@
                     $wc_attribute->set_id($att_id);
                     $wc_attribute->set_name($attribute['name']);
                     $wc_attribute->set_options( array( $attribute['value'] ) );
-                    $wc_attribut->set_visible( true );
+                    $wc_attribute->set_visible( true );
                     $wc_attribute->set_variation( false );
 
                     $wc_attributes[] =  $wc_attribute;
