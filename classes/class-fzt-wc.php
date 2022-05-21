@@ -5,6 +5,9 @@
         public function __construct(){
             add_action( 'wp_ajax_get_fzt_products', [ $this,'get_fzt_products' ]);
             add_action( 'wp_ajax_nopriv_get_fzt_products', [ $this,'get_fzt_products' ]);
+
+            add_action( 'wp_ajax_update_fzt_product_skus', [ $this,'update_skus_call' ]);
+            add_action( 'wp_ajax_nopriv_update_fzt_product_skus', [ $this,'update_skus_call' ]);
             // show the product image in shop list.
             add_filter( 'woocommerce_product_get_image', array( $this, 'get_image' ), 10, 6 );
 
@@ -18,6 +21,46 @@
             }
     
             return $template;
+        }
+
+        public function update_skus_call() {
+            $status = $this->update_skus(array("R$5COMMEM","1DUCA"));
+            wp_send_json( $status );
+        }
+
+        public function update_skus( $skus ) {
+            $api   = new FZT_API();
+            $coins = $api->getCoinsDataByCode( $skus );
+            if( is_wp_error( $coins ) ) {
+                FZT_API::log( "Error in updating coins: ".$coins->get_error_message()  );
+                return;
+            }
+
+            $status = array();
+
+            foreach($coins as $sku => $coin ) {
+
+                try{
+                    $wc_product_id = wc_get_product_id_by_sku( $sku );
+                    if( ! $wc_product_id ) {
+                        $status[ $sku ] = array( 'error'=>'Product doesn\'t exist' );
+                        continue;
+                    }
+                    $wc_product    = new WC_Product( $wc_product_id );
+                    $is_active_sell   = 'Y' === $coin['isActiveSell'];
+                    $wc_product->set_status( $is_active_sell ? 'publish' : 'pending' );
+                    $wc_product->set_regular_price( $is_active_sell? $coin[ 'price' ] : false );
+                    $wc_product->save();
+                    $status[$sku] = array( $wc_product_id=>$coin );
+                }
+                catch( Exception $e ){
+                    $status[$sku] = array( 'error'=>$e->get_error_message() );
+                }
+                
+
+            }
+
+            return $status;
         }
 
         public function thumbnail_html( $html, $post_thumbnail_id ) {

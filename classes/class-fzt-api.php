@@ -51,6 +51,8 @@ class FZT_API {
 				return "{$base_url}/FizServices/GetProductsByMetalV2/{$this->api_token}/{$data['code']}";
 			case 'get_images':
 				return "{$base_url}/FizServices/GetCoinImages/{$this->api_token}/{$data['code']}";
+			case 'get_product_catalog':
+				return "{$base_url}/FizServices/GetProductCatalog/{$this->api_token}";
 			case 'get_prices_for_products':
 				return "{$base_url}/FizServices/GetPricesForProducts/{$this->api_token}";
 			case 'get_single_product_price':
@@ -122,6 +124,7 @@ class FZT_API {
 					'description'     => $product[ 'description' ],
 					'availability'    => $product[ 'availability' ],
 					'category'        => $product[ 'category' ],
+					'isActiveSell'    => $product[ 'isActiveSell' ],
 					'attributes'            => array(
 						'metalType'   => array(
 											'name' => 'Metal Type',
@@ -166,7 +169,7 @@ class FZT_API {
 		foreach( $prices as $product_index => $price_data ) {
 			$code = $price_data[ 'code' ];
 			if( array_key_exists( $code, $productArr ) ) {
-				$first_tier = array_shift( $price_data[ 'tiers' ] );
+				$first_tier = $price_data[ 'tiers' ][1];
 				if( empty( $first_tier ) ) {
 					//exit
 					return new WP_Error( 'api_error', "Tier pricing is not available for code {$code}" );
@@ -189,6 +192,38 @@ class FZT_API {
 		}
 
 		return $productArr;
+	}
+
+	public function getCoinsDataByCode( $skus ) {
+		$url = $this->get_endpoint_url( 'get_product_catalog' );
+		$products = $this->request( $url, 'POST', array( 'items' => $skus ) );
+		if( is_wp_error( $products ) ) {
+			return new WP_Error( 'api_error', "Error in fetching Product data: ".$products->get_error_message() );
+		}
+		// Let's try to fetch product prices now
+		$price_url = $this->get_endpoint_url('get_prices_for_products');
+		
+
+		$prices    = $this->request($price_url, 'POST', $skus);
+		
+		if( is_wp_error( $prices ) ) {
+			return new WP_Error( 'api_error', "Error in fetching Product Prices: ".$prices->get_error_message() );
+		}
+
+		$coins = array();
+
+		foreach( $products as $coin ) {
+			$code = $coin['code'];
+			$coins[$code] = array( 'isActiveSell' => $coin['isActiveSell'] );
+		}
+
+		foreach( $prices as $price ) {
+			$code                      = $price[ 'code' ];
+			$tier1                     = $price['tiers'][1];
+			$coins[ $code ][ 'price' ] = $tier1['askPercise'] ;
+		}
+
+		return $coins;
 	}
 
 	/**
