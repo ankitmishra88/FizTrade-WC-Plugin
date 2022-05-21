@@ -118,13 +118,14 @@
 
         function create_wc_product( $sku, $coin ) {
             try{
-                $imageUrl      = $coin['imageUrl'];
-                $availability  = $coin[ 'availability' ] == "Not Available" ? 'outofstock' : 'instock';
-                $title         = $coin[ 'name' ];
-                $description   = $coin[ 'description' ];
-                $attributes    = $coin[ 'attributes' ];
-                $price         = $coin[ 'price' ];
-                $category      = $coin[ 'category' ];
+                $imageUrl       = $coin['imageUrl'];
+                $availability   = $coin[ 'availability' ] == "Not Available" ? 'outofstock' : 'instock';
+                $title          = $coin[ 'name' ];
+                $description    = $coin[ 'description' ];
+                $attributes     = $coin[ 'attributes' ];
+                $price          = $coin[ 'price' ];
+                $category       = $coin[ 'category' ];
+                $is_active_sell = 'Y' === $coin[ 'isActiveSell' ];
     
                 $wc_attributes = array();
     
@@ -133,8 +134,9 @@
                 $wc_product->set_description( $description );
                 $wc_product->set_sku( $sku );
                 $wc_product->set_stock_status($availability);
-                $wc_product->set_price( $price );
-                $wc_product->set_regular_price( floatval( $price ) );
+                $wc_product->set_price( $is_active_sell ? floatval( $price ) : false );
+                $wc_product->set_regular_price( $is_active_sell ? floatval( $price ) : false );
+                $wc_product->set_status( $is_active_sell ? 'publish' : 'pending' );
     
                 foreach($attributes as $att_id => $attribute){
                     $wc_attribute = new WC_Product_Attribute();
@@ -168,6 +170,7 @@
                 $imageUrl      = $coin[ 'imageUrl' ];
                 $attributes    = $coin[ 'attributes' ];
                 $category      = $coin[ 'category' ];
+                $is_active_sell = 'Y' === $coin[ 'isActiveSell' ];
 
                 $wc_attributes = array();
                 foreach($attributes as $att_id => $attribute){
@@ -181,8 +184,9 @@
                     $wc_attributes[] =  $wc_attribute;
                 }
 
-                $wc_product->set_price( $price );
-                $wc_product->set_regular_price( $price );
+                $wc_product->set_price( $is_active_sell ? floatval( $price ) : false );
+                $wc_product->set_regular_price( $is_active_sell ? floatval( $price ) : false );
+                $wc_product->set_status( $is_active_sell ? 'publish' : 'pending' );
                 $wc_product->set_stock_status( $availability );
 
                 wp_set_object_terms( $wc_product_id, $category, 'product_cat' );
