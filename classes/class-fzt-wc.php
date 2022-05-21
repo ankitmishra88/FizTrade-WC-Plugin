@@ -13,6 +13,58 @@
 
             // show the gallery images in single product page.
             add_filter( 'woocommerce_single_product_image_thumbnail_html', array( $this, 'thumbnail_html' ), 10, 2 );
+
+            add_action( 'init', array( $this, 'update_products_in_cart' ), 100 );
+            add_action( 'template_redirect', array($this, 'update_current_product') );
+        }
+
+        public function update_current_product() {
+            //If it's a single product page, Update Current Page Product first
+            $skus = array();
+            if( is_product() ) {
+                global $post;
+                
+                $product_id = $post->ID;
+                $product = wc_get_product( $product_id );
+                if( get_post_meta($product_id, 'is_fiztrade_product', true) ){ 
+                    $sku = $product->get_sku();
+                    if( $sku ) {
+                        $skus[]=$sku;
+                    }
+                }
+
+            }
+
+            if( ! empty($skus) ){
+                $updated = $this->update_skus( $skus );
+            }
+        }
+
+        public function update_products_in_cart(){
+            $cart_instance = WC()->cart;
+            if( ! $cart_instance ) {
+                return;
+            }
+            $items = $cart_instance->get_cart();
+            $skus = array();
+           
+            foreach($items as $item => $values) { 
+                $cart_product = $values['data'];
+                $product_id = $cart_product->get_id();
+                if( get_post_meta($product_id, 'is_fiztrade_product', true) ){
+                    $wc_product =  wc_get_product( $product_id ); 
+                    $sku = $wc_product->get_sku();
+                    if( $sku ) {
+                        $skus[]=$sku;
+                    }
+                }   
+            }
+            
+            if( ! empty($skus) ) {
+                $skus = array_unique( $skus );
+                $updated = $this->update_skus( $skus );
+            }
+
         }
 
         public function get_template( $template, $template_name, $args, $template_path, $default_path ) {
