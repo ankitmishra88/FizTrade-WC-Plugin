@@ -70,7 +70,7 @@ class FZT_API {
 			array(
 				'method'  => $method,
 				'body'    => wp_json_encode($body),
-				'timeout' => 20,
+				'timeout' => 100,
 				'headers' => array(
 					'Content-Type' => 'application/json'
 				)
@@ -82,6 +82,9 @@ class FZT_API {
 		}
 
 		$body = json_decode($response[ 'body' ], true);
+		if( empty($body) ) {
+			return new WP_Error('fzt_api_error', $response['body']);
+		}
 		if( isset( $body[ 'error' ] ) ) {
 			return new WP_Error('fzt_api_error', $body['error']);
 		}
@@ -93,6 +96,7 @@ class FZT_API {
 	 * Returns Product Data from FizTrade
 	 */
 	public function get_products(){
+		set_time_limit(200);
 		$codes    = [ 'Gold', 'Silver', 'Platinum' ];
 		$productArr = array();
 		$images   = array();
@@ -103,13 +107,11 @@ class FZT_API {
 			$products = $this->request($url,'GET');
 			$images   = $this->request( $imgUrl, 'GET');
 			if( is_wp_error( $products ) ) {
-				SELF::log( "Error in getting products with code {$code}: {$url}".( $products->get_error_message() ) );
-				return array();
+				return new WP_Error( 'api_error', "Error in getting products with code {$code}: {$url}".( $products->get_error_message() ) );
 			}
 
 			if( is_wp_error( $images ) ) {
-				SELF::log( "Error in fetching images for code {$code}: ".($images->get_error_message()) );
-				return array();
+				return new WP_Error( 'api_error', "Error in fetching images for code {$code}: ".($images->get_error_message()) );
 			}
 
 			SELF::log( "Product and images fetched for code { $code } Products" );
@@ -118,10 +120,25 @@ class FZT_API {
 				$productArr[$product_code] = array(
 					'name'            => $product[ 'name' ],
 					'description'     => $product[ 'description' ],
-					'meta'            => array(
-						'metalType'   => $product[ 'metalType' ],
-						'origin'      => $product[ 'origin' ],
-						'meltFactor'  => $product[ 'meltFactor' ]
+					'availability'    => $product[ 'availability' ],
+					'category'        => $product[ 'category' ],
+					'attributes'            => array(
+						'metalType'   => array(
+											'name' => 'Metal Type',
+											'value' => $product[ 'metalType' ],
+										),
+						'weight'      =>  array(
+											'name' => 'Weight',
+											'value' => $product[ 'weight' ],
+										),
+						'meltFactor'  =>  array(
+											'name' => 'Melt Factor',
+											'value' => $product[ 'meltFactor' ]
+										),
+						'fineness'  =>  array(
+											'name' => 'Fineness',
+											'value' => $product[ 'fineness' ]
+										),
 					)
 				);
 			}
@@ -131,6 +148,43 @@ class FZT_API {
 				if(array_key_exists( $product_code, $productArr ) ) {
 					$productArr[$product_code]['imageUrl']  = $image['imageURL'];
 				}
+			}
+
+		}
+
+		// Let's try to fetch product prices now
+		$price_url = $this->get_endpoint_url('get_prices_for_products');
+		
+
+		$prices    = $this->request($price_url, 'POST', array_map( 'strval', array_keys( $productArr ) ));
+		
+		if( is_wp_error( $prices ) ) {
+			//exit
+			return new WP_Error( 'api_error', "Error in fetching Product Prices: ".$prices->get_error_message() );
+		}
+
+		foreach( $prices as $product_index => $price_data ) {
+			$code = $price_data[ 'code' ];
+			if( array_key_exists( $code, $productArr ) ) {
+				$first_tier = array_shift( $price_data[ 'tiers' ] );
+				if( empty( $first_tier ) ) {
+					//exit
+					return new WP_Error( 'api_error', "Tier pricing is not available for code {$code}" );
+				}
+				else{
+					if( ! array_key_exists('askPercise', $first_tier ) ) {
+						//exit
+						return new WP_Error( 'api_error', "Product price in tier 1 is not available for code {$code}" );
+					}
+					$product_price = floatval( $first_tier[ 'askPercise' ] );
+					$productArr[$code]['price'] = $product_price;
+
+				}
+
+			}
+			else{
+				//exit
+				return new WP_Error( 'api_error', "Code {$code} is not available in our product array" );
 			}
 		}
 

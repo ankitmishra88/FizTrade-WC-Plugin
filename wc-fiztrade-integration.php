@@ -17,7 +17,7 @@
 defined('ABSPATH') || die('No Script Kiddies Please');
 
 defined('FIZTRADE_PLUGIN_DIR') || define('FIZTRADE_PLUGIN_DIR', dirname(__FILE__) );
-define('FIZTRADE_PLUGIN_URL') || define('FIZTRADE_PLUGIN_URL', plugin_dir_url(__FILE__) );
+defined('FIZTRADE_PLUGIN_URL') || define('FIZTRADE_PLUGIN_URL', plugin_dir_url(__FILE__) );
 
 class FizTradeIntegration{
 	
