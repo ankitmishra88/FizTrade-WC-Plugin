@@ -221,7 +221,7 @@
 
         function get_fzt_products(){
             //Set no time limit for this script
-            set_time_limit(0);
+            set_time_limit(3600);
             $api = new FZT_API();
             $products = $api->get_products();
             if( is_wp_error( $products ) ) {
