@@ -220,6 +220,8 @@
 
 
         function get_fzt_products(){
+            //Set no time limit for this script
+            set_time_limit(0);
             $api = new FZT_API();
             $products = $api->get_products();
             if( is_wp_error( $products ) ) {
@@ -227,7 +229,6 @@
             }
             $status = array();
             foreach( $products as $code => $coin ) {
-                set_time_limit(40);
                 $sku        = strval( $code );
                 $wc_product_id = wc_get_product_id_by_sku( $sku );
                 if( empty( $wc_product_id ) ){
