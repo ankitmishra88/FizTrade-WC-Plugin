@@ -45,10 +45,18 @@ class FizTradeIntegration{
 	}
 }
 
-global $fiztrade_wc;
+add_action('plugins_loaded', 'fzt_init_trade');
 
-$fiztrade_wc = new FizTradeIntegration();
+function fzt_init_trade() {
+	if( class_exists( 'WooCommerce' ) ) {
+		global $fiztrade_wc;
+
+		$fiztrade_wc = new FizTradeIntegration();
+		
+	}
+}
 
 function fiztrade_wc(){
 	return $GLOBALS['fiztrade_wc'];
 }
+
