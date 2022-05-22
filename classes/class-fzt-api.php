@@ -99,7 +99,6 @@ class FZT_API {
 	 * Returns Product Data from FizTrade
 	 */
 	public function get_products(){
-		set_time_limit(200);
 		$codes    = [ 'Gold', 'Silver', 'Platinum' ];
 		$productArr = array();
 		$images   = array();
