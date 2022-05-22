@@ -11,11 +11,15 @@
 	<form action='' method='POST'>
 		<div class='single-setting'>
 			<label>FizTrade API Token</label>
-			<input type='text' value='<?php echo $settings['fiztrade_api_token']; ?>' name='settings[fiztrade_api_token]' value='' />
+			<input type='text' value='<?php echo $settings['fiztrade_api_token']; ?>' name='settings[fiztrade_api_token]' />
 		</div>
 		<div class='single-setting'>
 			<label>FizTrade Chart Token</label>
-			<input value='<?php echo $settings['fiztrade_chart_token']; ?>' type='text' name='settings[fiztrade_chart_token]' value='' />
+			<input value='<?php echo $settings['fiztrade_chart_token']; ?>' type='text' name='settings[fiztrade_chart_token]'  />
+		</div>
+		<div class='single-setting'>
+			<label>FizTrade Trader ID</label>
+			<input value='<?php echo $settings['fiztrade_trader_id']; ?>' type='text' name='settings[fiztrade_trader_id]' />
 		</div>
 		<div class='single-setting'>
 			<input <?php echo isset($settings['live_mode'])?'checked':''; ?> type='checkbox' name='settings[live_mode]' id='fiztrade-mode' />
