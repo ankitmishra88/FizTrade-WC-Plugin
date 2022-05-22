@@ -25,6 +25,7 @@ class FZT_API {
 		$settings          = !is_array($settings)?array():$settings;
 		$this->api_token   = $settings['fiztrade_api_token'];
 		$this->mode        = isset($settings['live_mode'])?'live':'sandbox';
+		$this->trader_id   = $settings['fiztrade_trader_id'];
 		SELF::$log_enabled = $this->mode == 'sandbox';
 
 	}
@@ -244,16 +245,58 @@ class FZT_API {
 	 * @params array $dataArray data of trade to be executed(Products, qty, etc)
 	 * @return array $data with keys 'total_price' ,lockToken
 	 */
-	public function lock_price( $dataArray ) {
+	public function lock_price( $order_id, $dataArray ) {
+		$lock_body = array(
+			'transactionId'       => "OD-{$order_id}",
+			'includeRetailPrices' => 'yes',
+			'items'               => array()
+		);
+		foreach ( $dataArray as $sku => $quantity ) {
+			$lock_body[ 'items' ][] = array(
+				'code' => $sku,
+				'quantity' => strval( absint( $quantity ) ),
+				'transactionType' => 'buy'
+			);
+		}
 
+		$lock_url = $this->get_endpoint_url( 'lock_price' );
+		$response = $this->request( $lock_url, 'POST', $lock_body );
+
+		if( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		return $response;
 	}
 
 	/**
-	 * @param array $dataArray data of trade to be executed(Products, qty, etc).
-	 * @return array $executedTrade Information about executed trade.
+	 * @param string $locked_token locked_token for the trade to be executed(Products, qty, etc).
+	 * @return object $order WooCommerce Order object.
 	 */
-	public function executeTrade($dataArray,$lockToken){
-	
+	public function execute_trade($locked_token, $order ){
+		$execute_url = $this->get_endpoint( 'execute_trade' );
+		$order_id = $order->get_id();
+		$body = array(
+			"transactionId" => "OD-{$order_id}", 
+			"referenceNumber" => "OD-{$order_id}", 
+			"shippingOption" => "drop_ship", 
+			"dropShipInfo" => [
+				  "name" => $order->get_billing_first_name()." ".$order->get_billing_last_name(), 
+				  "address1" => "".$order->get_billing_address_1(), 
+				  "address2" => "".$order->get_billing_address_2(), 
+				  "address3" => "", 
+				  "address4" => "", 
+				  "city" => "".$order->get_billing_city(), 
+				  "state" => "".$order->get_billing_state(), 
+				  "postalCode" => "".$order->get_billing_postcode(), 
+				  "country" => "".$order->get_billing_country() 
+			   ], 
+			"lockToken" => $locked_token, 
+			"traderId" => $this->trader_id
+			);
+		$response = $this->request( $execute_url, 'POST', $body );
+		
+		return $response;
 	}
 
 	/**

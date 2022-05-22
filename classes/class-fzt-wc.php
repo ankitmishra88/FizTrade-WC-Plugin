@@ -16,6 +16,81 @@
 
             add_action( 'init', array( $this, 'update_products_in_cart' ), 100 );
             add_action( 'template_redirect', array($this, 'update_current_product') );
+
+            //lock the price
+            add_action( 'woocommerce_checkout_order_processed', array( $this, 'lock_the_price' ), 10, 1 );
+
+            //execute trade
+            add_action( 'woocommerce_payment_complete', array( $this, 'execute_the_trade' ), 10, 1 );
+        }
+
+        public function lock_the_price( $order_id ) {
+            $order = wc_get_order( $order_id );
+            $items = $order->get_items();
+            $skus = array();
+            
+
+            foreach( $items as $item ) {
+                $product_id = $item->get_product_id();
+                $quantity   = $item->get_quantity();
+                //print_r(array( $product_id, $quantity));
+
+                if( get_post_meta($product_id, 'is_fiztrade_product', true) ) {
+                    $wc_product = wc_get_product( $product_id );
+                    $sku = $wc_product->get_sku();
+                    //var_dump($sku);
+                    if( $sku ) {
+                        $skus[ $sku ] = $quantity;
+                    }
+                }
+
+            }
+
+            $api   = new FZT_API();
+            $locked_data = $api->lock_price($order_id,$skus);
+            if( is_wp_error( $locked_data ) ) {
+                $api::log( "Error in locking price for order id {$order_id}: ".( $locked_data->get_error_message() ), 'fzt-api-trade' );
+                throw new Exception( $locked_data->get_error_message() );
+            }
+            $api::log( "Successfuly locked price for order id {$order_id}", 'fzt-api-trade' );
+            update_post_meta( $order_id, 'fzt_locked_token', $locked_data['lockToken'] );
+            // I will update the order price here as well
+
+        }
+
+        public function execute_the_trade( $order_id ) {
+            $locked_token = get_post_meta( $order_id, 'fzt_locked_token', true );
+            if( !empty( $locked_token ) ) {
+                $order  = wc_get_order( $order_id );
+                $api    = new FZT_API();
+                $executed = $api->executeTrade();
+                if( is_wp_error( $executed ) ) {
+                    $api::log("Error in executing trade for order id {$order_id}: ".( $executed->get_error_message() ), 'fzt-api-trade' );
+                    $this->trigger_failed_trade_mail( $order_id, $executed->get_error_message() );
+                    throw new Exception( 
+                                            "Some error occured in processing your trade, 
+                                            please note the reference number FZTOD{$order_id}." 
+                                        );
+                    return;
+                }
+
+                $api::log( "Successfully executed traded for order id {$order_id}", 'fzt-api-trade' );
+                $confirmation_number = array_values( $executed['confirmation'] )[0];
+                $api::log( "Received confirmation number is {$confirmation_number}", 'fzt-api-trade' );
+                update_post_meta( $order_id, 'fzt_confirmation_number', $confirmation_number );
+                update_post_meta( $order_id, 'fzt_confirmation_data', $executed );
+
+                $this->trigger_success_trade_mail( $order_id, $executed );
+
+            }
+        }
+
+        public function trigger_failed_trade_mail( $order_id, $error ) {
+
+        }
+
+        public function trigger_success_trade_mail( $order_id, $executed ) {
+
         }
 
         public function update_current_product() {
@@ -26,7 +101,7 @@
                 
                 $product_id = $post->ID;
                 $product = wc_get_product( $product_id );
-                if( get_post_meta($product_id, 'is_fiztrade_product', true) ){ 
+                if( get_post_meta($product_id, 'is_fiztrade_product', true) ) { 
                     $sku = $product->get_sku();
                     if( $sku ) {
                         $skus[]=$sku;
