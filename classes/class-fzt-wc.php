@@ -22,7 +22,27 @@
 
             //execute trade
             add_action( 'woocommerce_payment_complete', array( $this, 'execute_the_trade' ), 10, 1 );
+			
+			// Show Fiztrade Confirmation number in WooCommerce as well
+			add_filter( 'manage_edit-shop_order_columns', array($this, 'fzt_confirmation_column' ), 20 );
+			
+			add_action( 'manage_shop_order_posts_custom_column' , array( $this, 'print_fzt_confirmation_number' ) , 20, 2 );
         }
+		
+		public function print_fzt_confirmation_number( $column, $order_id ) {
+			switch( $column ) {
+				case 'fzt_confirmation_number':
+					echo get_post_meta( $order_id, 'fzt_confirmation_number', true );
+					break;
+				default:
+					break;
+			}
+		}
+		
+		public function fzt_confirmation_column($columns) {
+			$columns['fzt_confirmation_number'] = "FizTrade Confirmation Number";
+			return $columns;
+		}
 
         public function lock_the_price( $order_id ) {
             $order = wc_get_order( $order_id );
@@ -63,7 +83,8 @@
             if( !empty( $locked_token ) ) {
                 $order  = wc_get_order( $order_id );
                 $api    = new FZT_API();
-                $executed = $api->executeTrade();
+				$api::log("Trying to execute order for {$order_id}", 'fzt-api-trade');
+                $executed = $api->execute_trade($locked_token, $order);
                 if( is_wp_error( $executed ) ) {
                     $api::log("Error in executing trade for order id {$order_id}: ".( $executed->get_error_message() ), 'fzt-api-trade' );
                     $this->trigger_failed_trade_mail( $order_id, $executed->get_error_message() );
@@ -74,8 +95,8 @@
                     return;
                 }
 
-                $api::log( "Successfully executed traded for order id {$order_id}", 'fzt-api-trade' );
-                $confirmation_number = array_values( $executed['confirmation'] )[0];
+                $api::log( "Successfully executed traded for order id {$order_id} with response ".json_encode( $executed ), 'fzt-api-trade' );
+                $confirmation_number = array_values( $executed['confirmationNumber'] )[0];
                 $api::log( "Received confirmation number is {$confirmation_number}", 'fzt-api-trade' );
                 update_post_meta( $order_id, 'fzt_confirmation_number', $confirmation_number );
                 update_post_meta( $order_id, 'fzt_confirmation_data', $executed );
@@ -330,5 +351,8 @@
             
         }
     }
+
+
+
 
 ?>

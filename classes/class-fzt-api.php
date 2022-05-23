@@ -253,10 +253,12 @@ class FZT_API {
 		foreach ( $dataArray as $sku => $quantity ) {
 			$lock_body[ 'items' ][] = array(
 				'code' => $sku,
-				'quantity' => strval( absint( $quantity ) ),
+				'qty' => strval( absint( $quantity ) ),
 				'transactionType' => 'buy'
 			);
 		}
+
+		//throw new Exception( json_encode($lock_body) );
 
 		$lock_url = $this->get_endpoint_url( 'lock_price' );
 		$response = $this->request( $lock_url, 'POST', $lock_body );
@@ -273,7 +275,7 @@ class FZT_API {
 	 * @return object $order WooCommerce Order object.
 	 */
 	public function execute_trade($locked_token, $order ){
-		$execute_url = $this->get_endpoint( 'execute_trade' );
+		$execute_url = $this->get_endpoint_url( 'execute_trade' );
 		$order_id = $order->get_id();
 		$body = array(
 			"transactionId" => "OD-{$order_id}", 
