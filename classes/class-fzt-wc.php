@@ -27,7 +27,16 @@
 			add_filter( 'manage_edit-shop_order_columns', array($this, 'fzt_confirmation_column' ), 20 );
 			
 			add_action( 'manage_shop_order_posts_custom_column' , array( $this, 'print_fzt_confirmation_number' ) , 20, 2 );
+			
+			// Remove magnifying button from woo product page.
+			add_filter( 'woocommerce_single_product_zoom_options', array( $this, 'remove_image_zoom_support' ), 100, 1 );
+			add_filter( 'woocommerce_single_product_zoom_enabled', '__return_false' );
         }
+		
+		public function remove_image_zoom_support( $zoom_options ) {
+			$zoom_options[ 'magnify' ] = 0;
+			return $zoom_options;
+		}
 		
 		public function print_fzt_confirmation_number( $column, $order_id ) {
 			switch( $column ) {
@@ -89,7 +98,7 @@
                     $api::log("Error in executing trade for order id {$order_id}: ".( $executed->get_error_message() ), 'fzt-api-trade' );
                     $this->trigger_failed_trade_mail( $order_id, $executed->get_error_message() );
                     throw new Exception( 
-                                            "Some error occured in processing your trade, 
+                                            "Error occured in processing the the trade: ".$executed->get_error_message().", 
                                             please note the reference number FZTOD{$order_id}." 
                                         );
                     return;
@@ -241,15 +250,17 @@
 
 
         function get_fzt_products(){
-            //Set no time limit for this script
+            //Set higher time limit for this script
             set_time_limit(3600);
             $api = new FZT_API();
             $products = $api->get_products();
+			
             if( is_wp_error( $products ) ) {
                 wp_send_json( array( 'status'=>false, 'message'=>$products->get_error_message() ) );
             }
             $status = array();
             foreach( $products as $code => $coin ) {
+				set_time_limit(3600);
                 $sku        = strval( $code );
                 $wc_product_id = wc_get_product_id_by_sku( $sku );
                 if( empty( $wc_product_id ) ){
