@@ -77,10 +77,39 @@
 
             $api   = new FZT_API();
             $locked_data = $api->lock_price($order_id,$skus);
+            
+            $locked_prices = array();
+            
+            foreach( $locked_data['prices'] as $price_data ) {
+                $product                   = $price_data['product'];
+                $locked_price              = $price_data['amount'];
+                $locked_prices[ $product ] = $locked_price;
+            }
+
             if( is_wp_error( $locked_data ) ) {
                 $api::log( "Error in locking price for order id {$order_id}: ".( $locked_data->get_error_message() ), 'fzt-api-trade' );
                 throw new Exception( $locked_data->get_error_message() );
             }
+            foreach( $order->get_items() as $item ){
+                $quantity = $item->get_quantity();
+                $product  = $item->get_product();
+                $sku      = $product->get_sku();
+                if( array_key_exists( $sku, $locked_prices ) ){
+                    $updated_price = floatval( $locked_prices[$sku] );
+                    // Set the new price
+                    $item->set_subtotal( $updated_price ); 
+                    $item->set_total( $updated_price );
+
+                    // Make new taxes calculations
+                    $item->calculate_taxes();
+                    $item->save();
+                    $order->calculate_totals();
+                }
+                else{
+                    throw new Exception( $product->get_name()." is not available to purchase at the moment" );
+                }
+            }
+            //throw new Exception("Testing completed");
             $api::log( "Successfuly locked price for order id {$order_id}", 'fzt-api-trade' );
             update_post_meta( $order_id, 'fzt_locked_token', $locked_data['lockToken'] );
             // I will update the order price here as well
